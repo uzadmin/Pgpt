@@ -143,10 +143,10 @@
                         </div>
                         <div>
                             <p class="text-white font-medium">Загрузить документы</p>
-                            <p class="text-blue-200 text-sm">PDF, DOCX, TXT, MD</p>
+                            <p class="text-blue-200 text-sm">PDF, DOCX, TXT, MD, HTML, JSON, DOC, PPTX, CSV, ODT, EPUB, IPYNB</p>
                         </div>
                     </div>
-                    <input ref="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.md,.py,.js" 
+                    <input ref="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.json,.doc,.pptx,.csv,.epub,.odt,.ipynb" 
                            @change="handleFileUpload" class="hidden">
                 </div>
                 
@@ -166,6 +166,64 @@
                                 <p class="text-blue-200 text-xs">{{ file.uploadTime }}</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Prompt Section -->
+            <div class="relative z-10 px-6 py-4 border-t border-white/20">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-white/80 text-sm font-medium">Системный промпт</h3>
+                    <button @click="isSystemPromptExpanded = !isSystemPromptExpanded" 
+                            class="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                        <svg class="w-4 h-4 text-white/60 transition-transform" 
+                             :class="isSystemPromptExpanded ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div v-show="isSystemPromptExpanded" class="animate-slide-up">
+                    <textarea v-model="systemPrompt" 
+                              placeholder="Введите системный промпт для настройки поведения AI..."
+                              rows="4"
+                              class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none custom-scrollbar"
+                              style="max-height: 120px;"></textarea>
+                    
+                    <!-- Quick Templates -->
+                    <div class="mt-3">
+                        <p class="text-white/60 text-xs mb-2">Быстрые шаблоны:</p>
+                        <div class="flex flex-wrap gap-1">
+                            <button v-for="template in systemPromptTemplates" :key="template.name"
+                                    @click="systemPrompt = template.prompt"
+                                    class="px-2 py-1 text-xs bg-blue-500/20 text-blue-200 rounded hover:bg-blue-500/30 transition-colors">
+                                {{ template.name }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Save/Clear buttons -->
+                    <div class="flex justify-between mt-3 space-x-2">
+                        <button @click="clearSystemPrompt"
+                                class="flex-1 px-3 py-1 text-xs text-red-300 border border-red-400/30 rounded hover:bg-red-500/20 transition-colors">
+                            Очистить
+                        </button>
+                        <button @click="saveSystemPrompt"
+                                class="flex-1 px-3 py-1 text-xs bg-green-500/20 text-green-200 border border-green-400/30 rounded hover:bg-green-500/30 transition-colors">
+                            Сохранить
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Current System Prompt Indicator -->
+                <div v-if="!isSystemPromptExpanded && systemPrompt" 
+                     class="mt-2 p-2 bg-green-500/10 border border-green-400/30 rounded text-xs text-green-200">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="truncate">Системный промпт активен</span>
                     </div>
                 </div>
             </div>
@@ -362,6 +420,14 @@
                                class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                placeholder="http://localhost:8001">
                     </div>
+                    
+                    <div>
+                        <label class="block text-white/80 text-sm font-medium mb-2">Системный промпт</label>
+                        <textarea v-model="settingsSystemPrompt" 
+                                  rows="4"
+                                  class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                  placeholder="Введите системный промпт для настройки поведения AI..."></textarea>
+                    </div>
                 </div>
                 
                 <div class="flex justify-end space-x-3 mt-8">
@@ -390,7 +456,34 @@
                     isLoading: false,
                     connectionStatus: 'disconnected', // connected, connecting, disconnected
                     apiUrl: 'http://localhost:8001',
-                    showSettings: false
+                    showSettings: false,
+                    
+                    // System Prompt functionality
+                    systemPrompt: '',
+                    settingsSystemPrompt: '',
+                    isSystemPromptExpanded: false,
+                    systemPromptTemplates: [
+                        {
+                            name: 'Помощник',
+                            prompt: 'Ты полезный AI-ассистент. Отвечай кратко и по существу. Всегда будь вежливым и профессиональным.'
+                        },
+                        {
+                            name: 'Эксперт',
+                            prompt: 'Enable deep thinking subroutine. Ты эксперт в анализе документов. Предоставляй детальные и точные ответы на основе предоставленной информации. Цитируй конкретные части документов.'
+                        },
+                        {
+                            name: 'Учитель',
+                            prompt: 'Ты опытный преподаватель. Объясняй сложные концепции простым языком, используй примеры и аналогии. Всегда проверяй понимание.'
+                        },
+                        {
+                            name: 'Аналитик',
+                            prompt: 'Ты бизнес-аналитик. Фокусируйся на ключевых метриках, выводах и рекомендациях. Структурируй ответы логично и предоставляй действенные инсайты.'
+                        },
+                        {
+                            name: 'Исследователь',
+                            prompt: 'Ты исследователь. Критически анализируй информацию, ищи связи между данными, выявляй паттерны и предлагай гипотезы.'
+                        }
+                    ]
                 }
             },
             computed: {
@@ -402,7 +495,15 @@
                     }
                 }
             },
+            watch: {
+                showSettings(newVal) {
+                    if (newVal) {
+                        this.settingsSystemPrompt = this.systemPrompt;
+                    }
+                }
+            },
             mounted() {
+                this.loadSettings();
                 this.checkConnection();
                 setInterval(this.checkConnection, 30000); // Check every 30 seconds
             },
@@ -445,13 +546,28 @@
                     });
 
                     try {
+                        // Prepare messages array with system prompt if available
+                        const messagesToSend = [];
+                        
+                        if (this.systemPrompt.trim()) {
+                            messagesToSend.push({
+                                role: 'system',
+                                content: this.systemPrompt.trim()
+                            });
+                        }
+                        
+                        messagesToSend.push({
+                            role: 'user',
+                            content: messageToSend
+                        });
+
                         const response = await fetch(`${this.apiUrl}/v1/chat/completions`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                                messages: [{ role: 'user', content: messageToSend }],
+                                messages: messagesToSend,
                                 use_context: true,
                                 include_sources: true,
                                 stream: false
@@ -567,8 +683,64 @@
                 },
 
                 saveSettings() {
+                    this.systemPrompt = this.settingsSystemPrompt;
+                    this.saveSettingsToStorage();
                     this.showSettings = false;
                     this.checkConnection();
+                },
+
+                // System Prompt methods
+                saveSystemPrompt() {
+                    this.saveSettingsToStorage();
+                    
+                    const systemMessage = {
+                        role: 'system',
+                        content: '💾 Системный промпт сохранен и будет применен к следующим сообщениям.',
+                        timestamp: new Date().toLocaleTimeString()
+                    };
+                    this.messages.push(systemMessage);
+                    
+                    this.$nextTick(() => {
+                        this.scrollToBottom();
+                    });
+                },
+
+                clearSystemPrompt() {
+                    this.systemPrompt = '';
+                    this.saveSettingsToStorage();
+                    
+                    const systemMessage = {
+                        role: 'system',
+                        content: '🗑️ Системный промпт очищен.',
+                        timestamp: new Date().toLocaleTimeString()
+                    };
+                    this.messages.push(systemMessage);
+                    
+                    this.$nextTick(() => {
+                        this.scrollToBottom();
+                    });
+                },
+
+                saveSettingsToStorage() {
+                    const settings = {
+                        apiUrl: this.apiUrl,
+                        systemPrompt: this.systemPrompt
+                    };
+                    Object.keys(settings).forEach(key => {
+                        localStorage.setItem(`privateGPT_${key}`, settings[key]);
+                    });
+                },
+
+                loadSettings() {
+                    const savedApiUrl = localStorage.getItem('privateGPT_apiUrl');
+                    const savedSystemPrompt = localStorage.getItem('privateGPT_systemPrompt');
+                    
+                    if (savedApiUrl) {
+                        this.apiUrl = savedApiUrl;
+                    }
+                    if (savedSystemPrompt) {
+                        this.systemPrompt = savedSystemPrompt;
+                    }
                 },
 
                 formatFileSize(bytes) {
